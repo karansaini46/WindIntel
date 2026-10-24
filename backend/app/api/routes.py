@@ -133,9 +133,8 @@ async def get_evaluation(
         )
         
     # 3. Fetch Forecasts published up to cutoff
-    # Forecasts for delivery date are published up to 48 hours prior.
-    # Query window: from 3 days prior to cutoff up to cutoff + 1 hour
-    pub_from = cutoff_utc - timedelta(days=3)
+    # Query window: from 5 days prior to cutoff up to cutoff + 1 hour to prevent omitting older revisions
+    pub_from = cutoff_utc - timedelta(days=5)
     pub_to = cutoff_utc + timedelta(hours=1)
     
     try:

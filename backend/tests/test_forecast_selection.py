@@ -162,3 +162,74 @@ def test_delivery_day_forecast_selection_with_missing_intervals():
     assert results[t1] is not None
     assert results[t1].generation_mw == 7000.0
     assert results[t2] is None, "Missing interval must be explicitly represented as None"
+
+
+def test_forecast_published_well_before_window_selected_when_no_newer_eligible():
+    """
+    Case 1: An older forecast published well before the normal lookback window
+    (e.g. 7 days prior to cutoff) is eligible and selected if no newer eligible forecast exists.
+    """
+    cutoff = datetime(2026, 1, 5, 12, 0, tzinfo=timezone.utc)
+    interval_time = datetime(2026, 1, 6, 12, 0, tzinfo=timezone.utc)
+    
+    # Published 7 days prior (2025-12-29)
+    old_forecast = WindForecastRecord(
+        start_time=interval_time,
+        publish_time=datetime(2025, 12, 29, 10, 0, tzinfo=timezone.utc),
+        generation_mw=8500.0
+    )
+    
+    selected = select_forecast_for_interval([old_forecast], cutoff)
+    assert selected is not None
+    assert selected.generation_mw == 8500.0
+    assert selected.publish_time == datetime(2025, 12, 29, 10, 0, tzinfo=timezone.utc)
+
+
+def test_newer_forecast_within_window_supersedes_older_forecast():
+    """
+    Case 2: A newer forecast published within the window supersedes an older forecast.
+    """
+    cutoff = datetime(2026, 1, 5, 12, 0, tzinfo=timezone.utc)
+    interval_time = datetime(2026, 1, 6, 12, 0, tzinfo=timezone.utc)
+    
+    # Older forecast published 5 days prior
+    old_forecast = WindForecastRecord(
+        start_time=interval_time,
+        publish_time=datetime(2025, 12, 31, 10, 0, tzinfo=timezone.utc),
+        generation_mw=8000.0
+    )
+    # Newer forecast published 1 day prior (within window)
+    new_forecast = WindForecastRecord(
+        start_time=interval_time,
+        publish_time=datetime(2026, 1, 4, 15, 0, tzinfo=timezone.utc),
+        generation_mw=9500.0
+    )
+    
+    selected = select_forecast_for_interval([old_forecast, new_forecast], cutoff)
+    assert selected is not None
+    assert selected.generation_mw == 9500.0
+    assert selected.publish_time == datetime(2026, 1, 4, 15, 0, tzinfo=timezone.utc)
+
+
+def test_no_eligible_forecast_within_queried_window():
+    """
+    Case 5: When all candidate records were published after the decision cutoff,
+    or the candidate list is empty, no forecast is selected (returns None).
+    """
+    cutoff = datetime(2026, 1, 5, 12, 0, tzinfo=timezone.utc)
+    interval_time = datetime(2026, 1, 6, 12, 0, tzinfo=timezone.utc)
+    
+    post_cutoff_1 = WindForecastRecord(
+        start_time=interval_time,
+        publish_time=datetime(2026, 1, 5, 13, 0, tzinfo=timezone.utc),
+        generation_mw=7000.0
+    )
+    post_cutoff_2 = WindForecastRecord(
+        start_time=interval_time,
+        publish_time=datetime(2026, 1, 6, 8, 0, tzinfo=timezone.utc),
+        generation_mw=7200.0
+    )
+    
+    assert select_forecast_for_interval([post_cutoff_1, post_cutoff_2], cutoff) is None
+    assert select_forecast_for_interval([], cutoff) is None
+

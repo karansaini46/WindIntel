@@ -67,19 +67,30 @@ immediately fails with `HTTP 400 Bad Request`:
 The WindIntel ingestion service partitions requests into chunks of at most 5–7 days, issues batched requests with bounded concurrency, and caches normalized responses in a local SQLite database (`windintel.db`).
 
 ### 3.2 Granularity & Interval Alignment (Hourly vs. Half-Hourly)
-A fundamental characteristic of the Elexon dataset:
-- `FUELHH` (Actuals) is reported at **30-minute (half-hourly)** resolution (48 settlement periods per normal day).
-- `WINDFOR` (Forecasts) is published by NESO at **60-minute (hourly)** resolution (settlement periods 1, 3, 5, ..., 47).
+A fundamental characteristic of the Elexon dataset verified directly against live API responses:
+- `FUELHH` (Actuals) is reported at **30-minute (half-hourly)** resolution (48 settlement periods per normal day). Every record explicitly provides `startTime` (with `:00` and `:30` minute values), `settlementDate`, `settlementPeriod` (1–48), and `generation` (MW).
+- `WINDFOR` (Forecasts) is published by National Energy System Operator (NESO) strictly at **60-minute (hourly)** resolution.
+  - Every forecast record's `startTime` occurs at minute `:00` (e.g. `00:00:00Z`, `01:00:00Z`, ..., `23:00:00Z`). In GB electricity settlement terms, these correspond to the odd-numbered settlement periods: SP 1, SP 3, SP 5, ..., SP 47.
+  - `WINDFOR` responses contain only `{'dataset', 'publishTime', 'startTime', 'generation'}` without explicit `settlementPeriod` or `settlementDate` fields.
+  - In the Elexon/NESO data convention, `generation` represents the expected average wind generation (MW) over that 60-minute interval starting at `startTime`.
+  - The API does **not** provide records for the intervening `:30` half-hours (SPs 2, 4, 6, ..., 48). When querying the `/forecast/generation/wind/evolution` endpoint with a half-hourly timestamp (such as `12:30:00Z`), the upstream Elexon engine explicitly maps it back to the hourly forecast starting at `12:00:00Z` (Settlement Period 25).
+  - The WindIntel parser does **not** ignore any records: every record returned by `/datasets/WINDFOR` is processed and validated.
 
 **Strict Data Integrity Rules:**
-1. **No Silent Interpolation:** We do **not** artificially synthesize or interpolate forecasts for `:30` settlement periods.
+1. **No Silent Interpolation:** We do **not** artificially synthesize or interpolate forecasts for `:30` settlement periods. Fabricating data would corrupt the evaluation of NESO's official day-ahead forecasts.
 2. **Explicit Denominators & Coverage:**
    - On a native 30-minute settlement interval grid, expected delivery intervals = 48.
    - Forecast intervals available from WINDFOR = 24.
+   - Actual intervals available from FUELHH = 48.
    - Matched forecast-actual pairs = 24.
-   - Missing forecast intervals = 24 (50% coverage).
-   - In hourly aggregated analysis, 24 hourly periods have 100% forecast coverage.
+   - Missing forecast intervals = 24 (50.0% coverage).
+   - Missing actual intervals = 0.
 3. **No Unpaired Metrics:** Metrics (MAE, RMSE, Bias, MAPE) are calculated **strictly on matched forecast-actual pairs**. Under no circumstances are missing forecasts or missing actuals coerced to 0 MW.
+
+### 3.3 Historical Retrieval Lookback Strategy
+- To evaluate purchasing decisions made at day-ahead cutoff $T_{\text{cutoff}}$, the ingestion service queries forecasts published across $[T_{\text{cutoff}} - 5\text{ days}, T_{\text{cutoff}} + 1\text{ hour}]$.
+- **Why 5 Days:** NESO issues wind forecasts up to 2–5 days prior to physical delivery. Bounding the publication query to $[T_{\text{cutoff}} - 5\text{d}, T_{\text{cutoff}} + 1\text{h}]$ ensures that earlier revisions are captured even if no newer revision was published within 48 hours of cutoff, while staying well within Elexon's 7-day query ceiling.
+- **Deep Historical Evolution Auditing:** For any specific delivery interval, the `/forecast/generation/wind/evolution?startTime={start_time}` endpoint retrieves the complete multi-day revision history (e.g. 24 revisions published between 57 hours and 10 hours prior to delivery), and applies the exact same cutoff filter $T_{\text{pub}} \le T_{\text{cutoff}}$ to guarantee 100% selection consistency.
 
 ---
 
