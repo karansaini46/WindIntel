@@ -1,0 +1,31 @@
+services:
+  - type: web
+    name: windintel-api
+    env: python
+    region: frankfurt
+    plan: starter
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    disk:
+      name: windintel-db
+      mountPath: /app/data
+      sizeGB: 1
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.3
+      - key: ENV
+        value: production
+      - key: DEBUG
+        value: false
+      - key: DEFAULT_DECISION_CUTOFF
+        value: 12:00:00
+      - key: MARKET_TIMEZONE
+        value: Europe/London
+      - key: CACHE_DB_PATH
+        value: /app/data/windintel.db
+      - key: CACHE_TTL_SECONDS
+        value: 2592000
+      - key: CORS_ORIGINS
+        value: '["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000", "http://127.0.0.1:3000"]'

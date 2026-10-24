@@ -1,0 +1,51 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: windintel-backend
+    ports:
+      - "8080:8000"
+    environment:
+      - ENV=production
+      - DEBUG=false
+      - DEFAULT_DECISION_CUTOFF=12:00:00
+      - MARKET_TIMEZONE=Europe/London
+      - CACHE_DB_PATH=/app/data/windintel.db
+      - CACHE_TTL_SECONDS=2592000
+      - DATA_START_DATE=2026-01-01
+      - DATA_END_DATE=2026-01-31
+      - CORS_ORIGINS=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5173", "http://127.0.0.1:5173"]
+    volumes:
+      - windintel_data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - windintel-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: windintel-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - windintel-network
+
+volumes:
+  windintel_data:
+    driver: local
+
+networks:
+  windintel-network:
+    driver: bridge
