@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { X, AlertCircle } from 'lucide-react';
 import { apiClient } from '../api/client';
 import { ForecastHistoryResponse } from '../api/types';
@@ -18,17 +18,52 @@ export const EvolutionModal: React.FC<EvolutionModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Close on Escape key
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    },
+    [onClose]
+  );
+
+  useEffect(() => {
+    if (!startTime) return;
+
+    window.addEventListener('keydown', handleKeyDown);
+    // Lock background scroll
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [startTime, handleKeyDown]);
+
   useEffect(() => {
     if (!startTime) return;
 
     let isMounted = true;
-    setLoading(true);
-    setError(null);
+
+    // Ensure decision_cutoff is a valid ISO timestamp format for the backend API
+    let queryCutoff = decisionCutoff;
+    if (decisionCutoff && !decisionCutoff.includes('T')) {
+      try {
+        const startDate = new Date(startTime);
+        startDate.setUTCDate(startDate.getUTCDate() - 1);
+        const ymd = startDate.toISOString().substring(0, 10);
+        queryCutoff = `${ymd}T${decisionCutoff.replace(/Z$/, '')}Z`;
+      } catch {
+        queryCutoff = decisionCutoff;
+      }
+    }
 
     apiClient
       .getForecastHistory({
         start_time: startTime,
-        decision_cutoff: decisionCutoff,
+        decision_cutoff: queryCutoff,
       })
       .then((res) => {
         if (isMounted) {
@@ -50,31 +85,53 @@ export const EvolutionModal: React.FC<EvolutionModalProps> = ({
 
   if (!startTime) return null;
 
+  const cutoffTimeDisplay = decisionCutoff.includes('T')
+    ? decisionCutoff.substring(11, 19)
+    : decisionCutoff;
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <div>
-            <h3 className="modal-title">Forecast Publication Evolution</h3>
+            <h3 id="modal-title" className="modal-title">
+              Forecast Publication Evolution
+            </h3>
             <p className="modal-subtitle">
               Delivery Interval: {startTime.replace('T', ' ').substring(0, 16)} GMT
             </p>
           </div>
-          <button className="btn-close" onClick={onClose}>
-            <X size={20} />
+          <button
+            type="button"
+            className="btn-close"
+            onClick={onClose}
+            aria-label="Close dialog"
+            autoFocus
+          >
+            <X size={18} />
           </button>
         </div>
 
         <div className="modal-body">
           {loading && (
-            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-secondary)' }}>
+            <div style={{ textAlign: 'center', padding: '2.5rem 1rem', color: 'var(--text-secondary)' }}>
               Loading Elexon publication evolution history...
             </div>
           )}
 
           {error && (
-            <div className="warning-alert" style={{ color: 'var(--color-error-neg)' }}>
-              <AlertCircle size={18} style={{ flexShrink: 0 }} />
+            <div className="warning-alert" role="alert" style={{ color: 'var(--danger)', background: 'var(--danger-subtle)' }}>
+              <AlertCircle size={16} style={{ flexShrink: 0 }} aria-hidden="true" />
               <div>
                 <strong>Error loading publication history:</strong>
                 <p style={{ marginTop: '0.2rem' }}>{error}</p>
@@ -84,94 +141,72 @@ export const EvolutionModal: React.FC<EvolutionModalProps> = ({
 
           {!loading && !error && data && (
             <div>
-              <div
-                style={{
-                  background: 'var(--bg-secondary)',
-                  padding: '0.75rem 1rem',
-                  borderRadius: 'var(--radius-md)',
-                  marginBottom: '1rem',
-                  border: '1px solid var(--border-subtle)',
-                  fontSize: '0.8rem',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Configured Cutoff:</span>
-                  <span className="mono" style={{ color: '#fff' }}>{decisionCutoff} GMT</span>
+              <div className="modal-info-strip">
+                <div className="modal-info-row">
+                  <span style={{ color: 'var(--text-secondary)' }}>Configured Decision Cutoff:</span>
+                  <span className="tabular" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {cutoffTimeDisplay} GMT
+                  </span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>Total Revisions Published:</span>
-                  <span className="mono" style={{ color: '#fff' }}>{data.versions_count} versions</span>
+                <div className="modal-info-row">
+                  <span style={{ color: 'var(--text-secondary)' }}>Total Revisions Published:</span>
+                  <span className="tabular" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                    {data.versions_count} versions
+                  </span>
                 </div>
               </div>
 
-              {data.versions.length === 0 && (
+              {data.versions.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                   No publication history records returned by Elexon BMRS for this interval.
                 </div>
+              ) : (
+                <div className="timeline-list">
+                  {data.versions.map((ver, idx) => {
+                    const isSelected = ver.is_selected;
+                    const isEligible = ver.eligible;
+
+                    return (
+                      <div
+                        key={idx}
+                        className={`timeline-item ${isSelected ? 'selected' : ''} ${
+                          !isEligible ? 'ineligible' : ''
+                        }`}
+                      >
+                        <div>
+                          <div className="timeline-time-row">
+                            <span className="timeline-pub-time tabular">
+                              {ver.publish_time.replace('T', ' ').substring(5, 16)} GMT
+                            </span>
+                            {isSelected && (
+                              <span className="timeline-badge-selected">
+                                ★ SELECTED VERSION
+                              </span>
+                            )}
+                            {!isEligible && (
+                              <span className="timeline-badge-ineligible">
+                                POST-CUTOFF (EXCLUDED)
+                              </span>
+                            )}
+                          </div>
+                          <div className="timeline-lead-time">
+                            Lead Time: {ver.lead_time_hours}h prior to delivery
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right' }}>
+                          <div className="timeline-mw-value">
+                            {ver.generation_mw.toLocaleString()} MW
+                          </div>
+                          <div className="timeline-status-note">
+                            {isEligible ? 'Eligible at cutoff' : 'Published after cutoff'}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               )}
-
-              <div className="timeline-list">
-                {data.versions.map((ver, idx) => {
-                  const isSelected = ver.is_selected;
-                  const isEligible = ver.eligible;
-
-                  return (
-                    <div
-                      key={idx}
-                      className={`timeline-item ${isSelected ? 'selected' : ''} ${
-                        !isEligible ? 'ineligible' : ''
-                      }`}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                          <span style={{ color: '#fff', fontWeight: 600 }}>
-                            {ver.publish_time.replace('T', ' ').substring(5, 16)} GMT
-                          </span>
-                          {isSelected && (
-                            <span
-                              style={{
-                                background: 'rgba(56, 189, 248, 0.2)',
-                                color: 'var(--color-forecast)',
-                                padding: '0.1rem 0.4rem',
-                                borderRadius: '3px',
-                                fontSize: '0.68rem',
-                                fontWeight: 700,
-                              }}
-                            >
-                              ★ SELECTED VERSION
-                            </span>
-                          )}
-                          {!isEligible && (
-                            <span
-                              style={{
-                                background: 'rgba(244, 63, 94, 0.15)',
-                                color: 'var(--color-error-neg)',
-                                padding: '0.1rem 0.4rem',
-                                borderRadius: '3px',
-                                fontSize: '0.68rem',
-                              }}
-                            >
-                              POST-CUTOFF (EXCLUDED)
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                          Lead Time: {ver.lead_time_hours}h prior to delivery
-                        </div>
-                      </div>
-
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-forecast)' }}>
-                          {ver.generation_mw.toLocaleString()} MW
-                        </div>
-                        <div style={{ fontSize: '0.7rem', color: isEligible ? 'var(--color-actual)' : 'var(--text-muted)' }}>
-                          {isEligible ? 'Eligible at cutoff' : 'Published after cutoff'}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
           )}
         </div>

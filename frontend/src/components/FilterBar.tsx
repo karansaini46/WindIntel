@@ -29,37 +29,52 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   isLoading,
 }) => {
   return (
-    <div className="filter-bar">
+    <section className="filter-bar" aria-label="Evaluation decision filters">
       <div className="filter-group">
         <div className="control-item">
-          <label className="control-label">Decision Date (Jan 2026)</label>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <label htmlFor="decision-date-input" className="control-label">
+            Decision Date (Jan 2026)
+          </label>
+          <div className="control-input-row">
             <input
+              id="decision-date-input"
               type="date"
-              className="date-input mono"
+              className="date-input"
               value={decisionDate}
               min="2026-01-01"
               max="2026-01-31"
+              disabled={isLoading}
               onChange={(e) => onDecisionDateChange(e.target.value)}
             />
-            {PRESETS.map((p) => (
-              <button
-                key={p.date}
-                className={`btn btn-secondary ${decisionDate === p.date ? 'btn-primary' : ''}`}
-                style={{ padding: '0.35rem 0.6rem', fontSize: '0.75rem' }}
-                onClick={() => onDecisionDateChange(p.date)}
-              >
-                {p.label}
-              </button>
-            ))}
+            <div className="preset-pills" role="group" aria-label="Quick date presets">
+              {PRESETS.map((p) => {
+                const isActive = decisionDate === p.date;
+                return (
+                  <button
+                    key={p.date}
+                    type="button"
+                    className={`btn btn-preset ${isActive ? 'active' : ''}`}
+                    disabled={isLoading}
+                    onClick={() => onDecisionDateChange(p.date)}
+                    aria-pressed={isActive}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
         <div className="control-item">
-          <label className="control-label">Day-Ahead Purchasing Cutoff</label>
+          <label htmlFor="decision-cutoff-select" className="control-label">
+            Day-Ahead Purchasing Cutoff
+          </label>
           <select
-            className="select-input mono"
+            id="decision-cutoff-select"
+            className="select-input"
             value={decisionCutoff}
+            disabled={isLoading}
             onChange={(e) => onDecisionCutoffChange(e.target.value)}
           >
             <option value="11:00:00">11:00:00 GMT (EPEX Auction)</option>
@@ -70,26 +85,29 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </div>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+      <div className="filter-actions">
         <button
+          type="button"
           className="btn btn-secondary"
           onClick={onRefresh}
           disabled={isLoading}
-          title="Reload evaluation data from Elexon"
+          title="Reload evaluation data from Elexon BMRS"
         >
-          <RefreshCw size={14} className={isLoading ? 'spin' : ''} />
+          <RefreshCw size={13} className={isLoading ? 'spin' : ''} aria-hidden="true" />
           <span>{isLoading ? 'Fetching...' : 'Refresh'}</span>
         </button>
 
         <button
+          type="button"
           className="btn btn-primary"
           onClick={onExport}
+          disabled={isLoading}
           title="Export evaluated delivery intervals as RFC 4180 CSV"
         >
-          <Download size={14} />
+          <Download size={13} aria-hidden="true" />
           <span>Export CSV</span>
         </button>
       </div>
-    </div>
+    </section>
   );
 };

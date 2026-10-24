@@ -13,16 +13,17 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics, coverage })
   const isUnderforecast = biasValue !== null && biasValue < 0;
 
   return (
-    <div className="kpi-grid">
+    <section className="kpi-grid" aria-label="Key performance indicators">
       {/* 1. MAE */}
-      <div className="kpi-card">
+      <div className="kpi-card" tabIndex={0} aria-label="Mean Absolute Error card">
         <div className="kpi-header">
           <span className="kpi-label">Mean Absolute Error</span>
           <span
             className="kpi-info-icon"
-            title="MAE represents the average magnitude of forecast error across all valid matched delivery intervals. Lower values indicate higher accuracy."
+            title="MAE measures average magnitude of absolute forecast error across all valid matched intervals. Lower values indicate higher accuracy."
+            aria-label="MAE information"
           >
-            <HelpCircle size={14} />
+            <HelpCircle size={14} aria-hidden="true" />
           </span>
         </div>
         <div className="kpi-value-row">
@@ -35,14 +36,15 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics, coverage })
       </div>
 
       {/* 2. RMSE */}
-      <div className="kpi-card">
+      <div className="kpi-card" tabIndex={0} aria-label="Root Mean Squared Error card">
         <div className="kpi-header">
           <span className="kpi-label">Root Mean Squared Error</span>
           <span
             className="kpi-info-icon"
-            title="RMSE measures the square root of mean squared errors. It penalizes large individual forecast misses significantly more heavily than MAE."
+            title="RMSE calculates the square root of mean squared errors, placing greater weight on large individual forecast deviations than MAE."
+            aria-label="RMSE information"
           >
-            <HelpCircle size={14} />
+            <HelpCircle size={14} aria-hidden="true" />
           </span>
         </div>
         <div className="kpi-value-row">
@@ -55,28 +57,33 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics, coverage })
       </div>
 
       {/* 3. Bias */}
-      <div className="kpi-card">
+      <div className="kpi-card" tabIndex={0} aria-label="Forecast Bias card">
         <div className="kpi-header">
           <span className="kpi-label">Forecast Bias (Mean Error)</span>
           <span
             className="kpi-info-icon"
-            title="Bias = mean(Forecast - Actual). Positive means forecasts systematically overestimate generation (risking shortfall in procurement); negative means systematic underestimation."
+            title="Bias = mean(Forecast - Actual). Positive values indicate systematic overestimation; negative values indicate systematic underestimation."
+            aria-label="Bias information"
           >
-            <HelpCircle size={14} />
+            <HelpCircle size={14} aria-hidden="true" />
           </span>
         </div>
         <div className="kpi-value-row">
           <span
             className="kpi-value"
             style={{
-              color: isOverforecast ? 'var(--color-error-pos)' : isUnderforecast ? 'var(--color-error-neg)' : '#fff',
+              color: isOverforecast
+                ? 'var(--error-positive)'
+                : isUnderforecast
+                ? 'var(--error-negative)'
+                : 'var(--text-primary)',
             }}
           >
             {biasValue !== null ? `${biasValue > 0 ? '+' : ''}${biasValue.toLocaleString()}` : 'N/A'}
           </span>
           <span className="kpi-unit">MW</span>
         </div>
-        {biasValue !== null && (
+        {biasValue !== null ? (
           <div
             className={`kpi-badge ${
               isOverforecast ? 'badge-overforecast' : isUnderforecast ? 'badge-underforecast' : ''
@@ -84,18 +91,21 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics, coverage })
           >
             {isOverforecast ? 'Overforecasting (+)' : isUnderforecast ? 'Underforecasting (-)' : 'Zero Bias'}
           </div>
+        ) : (
+          <div className="kpi-subtext">Sign of systematic deviation</div>
         )}
       </div>
 
       {/* 4. MAPE */}
-      <div className="kpi-card">
+      <div className="kpi-card" tabIndex={0} aria-label="Mean Absolute Percentage Error card">
         <div className="kpi-header">
           <span className="kpi-label">Mean Absolute % Error</span>
           <span
             className="kpi-info-icon"
-            title="MAPE measures percentage deviation relative to actual generation. Observations with actuals < 100 MW are excluded to avoid mathematical distortion during calm wind periods."
+            title="MAPE measures percentage deviation relative to actual generation. Low-generation intervals (< 100 MW) are excluded to prevent division-by-near-zero distortion."
+            aria-label="MAPE information"
           >
-            <HelpCircle size={14} />
+            <HelpCircle size={14} aria-hidden="true" />
           </span>
         </div>
         <div className="kpi-value-row">
@@ -111,14 +121,15 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics, coverage })
       </div>
 
       {/* 5. Forecast Coverage */}
-      <div className="kpi-card">
+      <div className="kpi-card" tabIndex={0} aria-label="Interval Coverage card">
         <div className="kpi-header">
           <span className="kpi-label">Interval Coverage</span>
           <span
             className="kpi-info-icon"
-            title="Percentage of expected delivery intervals that have a verified matched forecast-actual pair. WINDFOR provides hourly projections (24 intervals) on a 48-period settlement day."
+            title="Proportion of expected delivery intervals that have verified matched forecast and actual metered pairs."
+            aria-label="Coverage information"
           >
-            <HelpCircle size={14} />
+            <HelpCircle size={14} aria-hidden="true" />
           </span>
         </div>
         <div className="kpi-value-row">
@@ -128,6 +139,6 @@ export const SummaryCards: React.FC<SummaryCardsProps> = ({ metrics, coverage })
           {coverage.matched_pairs} of {coverage.expected_intervals} periods matched
         </div>
       </div>
-    </div>
+    </section>
   );
 };

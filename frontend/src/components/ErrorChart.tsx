@@ -22,16 +22,16 @@ const renderErrorTooltip = ({ active, payload, label }: any) => {
     const data = payload[0]?.payload;
     const isOver = data.error >= 0;
     return (
-      <div className="custom-chart-tooltip">
+      <div className="custom-chart-tooltip" role="tooltip">
         <div className="tt-time">
-          {label} GMT (SP {data?.sp})
+          {label} GMT · Settlement Period {data?.sp}
         </div>
 
         <div className="tt-row">
-          <span className="tt-label">Forecast Error:</span>
+          <span className="tt-label">Forecast Error (F - A):</span>
           <span
             className="tt-val"
-            style={{ color: isOver ? 'var(--color-error-pos)' : 'var(--color-error-neg)' }}
+            style={{ color: isOver ? 'var(--error-positive)' : 'var(--error-negative)' }}
           >
             {isOver ? '+' : ''}
             {data.error.toLocaleString()} MW
@@ -39,15 +39,25 @@ const renderErrorTooltip = ({ active, payload, label }: any) => {
         </div>
 
         <div className="tt-row">
-          <span className="tt-label">Classification:</span>
-          <span className="tt-val" style={{ color: isOver ? 'var(--color-error-pos)' : 'var(--color-error-neg)' }}>
-            {isOver ? 'Overforecasting (Shortfall Risk)' : 'Underforecasting (Surplus)'}
+          <span className="tt-label">Direction:</span>
+          <span
+            className="tt-val"
+            style={{ color: isOver ? 'var(--error-positive)' : 'var(--error-negative)' }}
+          >
+            {isOver ? 'Overforecast (Overestimation)' : 'Underforecast (Underestimation)'}
           </span>
         </div>
 
-        <div className="tt-row" style={{ marginTop: '0.35rem', paddingTop: '0.35rem', borderTop: '1px solid var(--border-subtle)' }}>
-          <span className="tt-label">Forecast / Actual:</span>
-          <span className="tt-val mono">
+        <div
+          className="tt-row"
+          style={{
+            marginTop: '0.35rem',
+            paddingTop: '0.35rem',
+            borderTop: '1px solid var(--border)',
+          }}
+        >
+          <span className="tt-label">Forecast / Outturn:</span>
+          <span className="tt-val tabular">
             {data.forecast?.toLocaleString()} / {data.actual?.toLocaleString()} MW
           </span>
         </div>
@@ -76,50 +86,51 @@ export const ErrorChart: React.FC<ErrorChartProps> = ({ intervals, deliveryDate 
   return (
     <div className="chart-card">
       <div className="chart-header">
-        <div>
+        <div className="chart-title-group">
           <h2 className="chart-title">Forecast Residuals & Directional Bias</h2>
           <p className="chart-subtitle">
-            Signed error (Forecast - Actual) for {deliveryDate} · Positive = Overforecast, Negative = Underforecast
+            Signed error (Forecast - Actual) for {deliveryDate} · Positive = Overestimate, Negative = Underestimate
           </p>
         </div>
 
-        <div className="chart-legend">
+        <div className="chart-legend" aria-label="Error chart legend">
           <div className="legend-item">
-            <div className="legend-color" style={{ background: 'var(--color-error-pos)' }} />
-            <span>Overforecast (Surplus Risk)</span>
+            <div className="legend-color" style={{ background: '#B68A4C' }} />
+            <span>Overforecast (+MW)</span>
           </div>
           <div className="legend-item">
-            <div className="legend-color" style={{ background: 'var(--color-error-neg)' }} />
-            <span>Underforecast (Deficit Risk)</span>
+            <div className="legend-color" style={{ background: '#B9655C' }} />
+            <span>Underforecast (-MW)</span>
           </div>
         </div>
       </div>
 
-      <div style={{ height: '280px', width: '100%' }}>
+      <div style={{ height: '300px', width: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2a303c" vertical={false} />
+          <BarChart data={chartData} margin={{ top: 12, right: 16, left: 6, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E3E8E3" vertical={false} />
             <XAxis
               dataKey="time"
-              stroke="#64748b"
+              stroke="#69746E"
               fontSize={11}
               tickLine={false}
-              interval={3}
+              axisLine={{ stroke: '#CFD7D0' }}
+              interval={2}
             />
             <YAxis
-              stroke="#64748b"
+              width={64}
+              stroke="#69746E"
               fontSize={11}
               tickLine={false}
-              tickFormatter={(val) => `${(val / 1000).toFixed(1)}k`}
+              axisLine={{ stroke: '#CFD7D0' }}
+              tickFormatter={(val) => `${(val / 1000).toFixed(1)}k MW`}
             />
             <Tooltip content={renderErrorTooltip} />
-            <ReferenceLine y={0} stroke="#475569" strokeWidth={1.5} />
-            <Bar dataKey="error" maxBarSize={20} radius={[2, 2, 0, 0]}>
+            <ReferenceLine y={0} stroke="#89928C" strokeWidth={1.5} />
+            <Bar dataKey="error" maxBarSize={18} radius={[2, 2, 0, 0]}>
               {chartData.map((entry, index) => {
                 const color =
-                  entry.error !== null && entry.error >= 0
-                    ? 'var(--color-error-pos)'
-                    : 'var(--color-error-neg)';
+                  entry.error !== null && entry.error >= 0 ? '#B68A4C' : '#B9655C';
                 return <Cell key={`cell-${index}`} fill={color} />;
               })}
             </Bar>

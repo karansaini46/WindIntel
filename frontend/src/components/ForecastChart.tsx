@@ -18,51 +18,61 @@ interface ForecastChartProps {
 const renderForecastTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     const data = payload[0]?.payload;
+    const hasForecast = data?.forecast !== null && data?.forecast !== undefined;
+    const hasActual = data?.actual !== null && data?.actual !== undefined;
+    const err = hasForecast && hasActual ? data.forecast - data.actual : null;
+
     return (
-      <div className="custom-chart-tooltip">
+      <div className="custom-chart-tooltip" role="tooltip">
         <div className="tt-time">
-          {label} GMT (SP {data?.sp})
+          {label} GMT · Settlement Period {data?.sp}
         </div>
 
         <div className="tt-row">
           <span className="tt-label">Selected Forecast:</span>
-          <span className="tt-val" style={{ color: 'var(--color-forecast)' }}>
-            {data?.forecast !== null && data?.forecast !== undefined
-              ? `${data.forecast.toLocaleString()} MW`
-              : 'Missing / Not Published'}
+          <span className="tt-val" style={{ color: 'var(--forecast-series)' }}>
+            {hasForecast ? `${data.forecast.toLocaleString()} MW` : 'Missing / Not Published'}
           </span>
         </div>
 
         <div className="tt-row">
-          <span className="tt-label">Actual Outturn:</span>
-          <span className="tt-val" style={{ color: 'var(--color-actual)' }}>
-            {data?.actual !== null && data?.actual !== undefined
-              ? `${data.actual.toLocaleString()} MW`
-              : 'Pending / Missing'}
+          <span className="tt-label">Actual Generation:</span>
+          <span className="tt-val" style={{ color: 'var(--actual-series)' }}>
+            {hasActual ? `${data.actual.toLocaleString()} MW` : 'Pending / Missing'}
           </span>
         </div>
 
-        {data?.forecast !== null && data?.actual !== null && (
-          <div className="tt-row" style={{ marginTop: '0.35rem', paddingTop: '0.35rem', borderTop: '1px solid var(--border-subtle)' }}>
+        {err !== null && (
+          <div
+            className="tt-row"
+            style={{
+              marginTop: '0.35rem',
+              paddingTop: '0.35rem',
+              borderTop: '1px solid var(--border)',
+            }}
+          >
             <span className="tt-label">Error (F - A):</span>
             <span
               className="tt-val"
               style={{
-                color:
-                  data.forecast - data.actual >= 0
-                    ? 'var(--color-error-pos)'
-                    : 'var(--color-error-neg)',
+                color: err >= 0 ? 'var(--error-positive)' : 'var(--error-negative)',
               }}
             >
-              {data.forecast - data.actual > 0 ? '+' : ''}
-              {Math.round(data.forecast - data.actual).toLocaleString()} MW
+              {err > 0 ? '+' : ''}
+              {Math.round(err).toLocaleString()} MW
             </span>
           </div>
         )}
 
         {data?.leadTime !== null && data?.leadTime !== undefined && (
           <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
-            Lead time at cutoff: {data.leadTime} hrs
+            Lead time at cutoff: {data.leadTime}h
+          </div>
+        )}
+
+        {data?.publishTime && (
+          <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+            Published: {data.publishTime.replace('T', ' ').substring(0, 16)} GMT
           </div>
         )}
       </div>
@@ -92,60 +102,63 @@ export const ForecastChart: React.FC<ForecastChartProps> = ({
   return (
     <div className="chart-card">
       <div className="chart-header">
-        <div>
+        <div className="chart-title-group">
           <h2 className="chart-title">Day-Ahead Generation vs Outturn Profile</h2>
           <p className="chart-subtitle">
-            Evaluated for delivery on {deliveryDate} (Europe/London Market Clock)
+            Evaluated for delivery on {deliveryDate} (Europe/London Market Clock) · Hourly WINDFOR vs 30-min FUELHH
           </p>
         </div>
 
-        <div className="chart-legend">
+        <div className="chart-legend" aria-label="Forecast chart legend">
           <div className="legend-item">
-            <div className="legend-color" style={{ background: 'var(--color-forecast)' }} />
+            <div className="legend-color" style={{ background: 'var(--forecast-series)' }} />
             <span>Eligible Forecast (WINDFOR)</span>
           </div>
           <div className="legend-item">
-            <div className="legend-color" style={{ background: 'var(--color-actual)' }} />
+            <div className="legend-color" style={{ background: 'var(--actual-series)' }} />
             <span>Metered Outturn (FUELHH)</span>
           </div>
         </div>
       </div>
 
-      <div style={{ height: '340px', width: '100%' }}>
+      <div style={{ height: '360px', width: '100%' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#2a303c" vertical={false} />
+          <LineChart data={chartData} margin={{ top: 12, right: 16, left: 6, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#E3E8E3" vertical={false} />
             <XAxis
               dataKey="time"
-              stroke="#64748b"
+              stroke="#69746E"
               fontSize={11}
               tickLine={false}
-              interval={5}
+              axisLine={{ stroke: '#CFD7D0' }}
+              interval={3}
             />
             <YAxis
-              stroke="#64748b"
+              width={64}
+              stroke="#69746E"
               fontSize={11}
               tickLine={false}
-              tickFormatter={(val) => `${(val / 1000).toFixed(0)}k`}
+              axisLine={{ stroke: '#CFD7D0' }}
+              tickFormatter={(val) => `${(val / 1000).toFixed(0)}k MW`}
             />
             <Tooltip content={renderForecastTooltip} />
             <Line
               type="monotone"
               dataKey="forecast"
-              stroke="var(--color-forecast)"
-              strokeWidth={2.5}
-              dot={{ r: 2.5, fill: 'var(--color-forecast)' }}
-              activeDot={{ r: 5 }}
+              stroke="#6489A5"
+              strokeWidth={2.2}
+              dot={{ r: 2.5, fill: '#6489A5', strokeWidth: 0 }}
+              activeDot={{ r: 5, stroke: '#FFFFFF', strokeWidth: 2 }}
               name="Forecast"
               connectNulls={false}
             />
             <Line
               type="monotone"
               dataKey="actual"
-              stroke="var(--color-actual)"
+              stroke="#47745E"
               strokeWidth={2}
-              dot={{ r: 2, fill: 'var(--color-actual)' }}
-              activeDot={{ r: 5 }}
+              dot={{ r: 2, fill: '#47745E', strokeWidth: 0 }}
+              activeDot={{ r: 5, stroke: '#FFFFFF', strokeWidth: 2 }}
               name="Actual"
               connectNulls={false}
             />
