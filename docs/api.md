@@ -1,9 +1,10 @@
 # WindIntel — REST API Specification
 
 ## Base URL
+- **Production Cloud API:** `https://windintel.onrender.com`
+- **Interactive Swagger Docs (Production):** [https://windintel.onrender.com/docs](https://windintel.onrender.com/docs)
 - **Local Development:** `http://localhost:8000`
 - **Prefix:** `/api`
-- **Interactive Swagger Docs:** `/docs` (FastAPI Swagger UI)
 - **OpenAPI Schema:** `/openapi.json`
 
 ---

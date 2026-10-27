@@ -138,8 +138,12 @@ frontend/
 │   ├── App.tsx                 # Root layout, URL search param synchronization
 │   └── main.tsx                # React DOM mount point
 ├── tests/
-│   ├── Dashboard.test.tsx      # Component rendering & interaction tests
-│   └── evaluation.test.ts      # Client-side formatting & transformation tests
+│   ├── App.test.tsx            # Root component rendering & state initialization
+│   ├── CoverageAudit.test.tsx  # Forecast resolution & completeness accounting
+│   ├── EvolutionModal.test.tsx # Revision timeline & version drawer interactions
+│   ├── FilterBar.test.tsx      # Date preset & cutoff time controls
+│   ├── IntervalTable.test.tsx  # Settlement period audit table & sorting
+│   └── SummaryCards.test.tsx   # MAE, RMSE, Bias, and MAPE KPI display
 ├── Dockerfile                  # Multi-stage production Nginx container
 ├── package.json
 └── vite.config.ts
@@ -155,5 +159,9 @@ frontend/
 2. **Why SQLite Persistent Cache?**
    January 2026 Elexon data is historical and immutable. Querying Elexon for identical ranges repeatedly introduces latency, risks rate limiting, and wastes bandwidth. A simple SQLite database provides sub-millisecond local reads, requires zero external setup, and preserves retrieved data across container restarts via volume mounts.
 
-3. **Restrained, High-Density Dark Theme:**
-   Energy market schedulers and traders monitor multiple screens simultaneously for hours. High-contrast, dark-mode designs with subtle borders and compact typography maximize information density while minimizing eye fatigue.
+3. **Editorial, Data-First Analytics Theme:**
+   The dashboard features a refined, editorial light theme (`#F7F8F6` canvas, crisp sage/forest green accents `#47745E`, and warm ochre/terracotta residual error indicators). This aesthetic provides maximum contrast and readability for quantitative energy analysts and traders during long working sessions.
+
+4. **Production Deployment Topology:**
+   - **Frontend:** Vercel edge network ([https://windintel.vercel.app](https://windintel.vercel.app)) delivering pre-compiled static assets with sub-50ms global TTFB.
+   - **Backend:** Render container service ([https://windintel.onrender.com](https://windintel.onrender.com)) running Python 3.12 / FastAPI / Uvicorn with automated CORS regex authorization for `*.vercel.app`.

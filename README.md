@@ -1,13 +1,20 @@
 # WindIntel — UK Wind Forecast Intelligence Platform
 
+[![Live App](https://img.shields.io/badge/Live%20App-windintel.vercel.app-emerald.svg)](https://windintel.vercel.app)
+[![API Status](https://img.shields.io/badge/API-windintel.onrender.com-blue.svg)](https://windintel.onrender.com/api/health)
+[![API Docs](https://img.shields.io/badge/OpenAPI-Swagger%20UI-009688.svg)](https://windintel.onrender.com/docs)
 [![Python](https://img.shields.io/badge/Python-3.12-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-19-61dafb.svg)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6.svg)](https://www.typescriptlang.org/)
 [![Vite](https://img.shields.io/badge/Vite-8+-646cff.svg)](https://vitejs.dev/)
-[![Tests](https://img.shields.io/badge/Tests-46%20Passed-emerald.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-49%20Passed-emerald.svg)]()
 
 > Decision-support platform for UK electricity utilities to evaluate day-ahead wind power generation forecasts against metered outturn data, reconstruct historical purchasing constraints, detect systematic model biases, and manage imbalance risk.
+
+* **Live Frontend:** [https://windintel.vercel.app](https://windintel.vercel.app)
+* **Live Backend API:** [https://windintel.onrender.com](https://windintel.onrender.com)
+* **Interactive OpenAPI Docs:** [https://windintel.onrender.com/docs](https://windintel.onrender.com/docs)
 
 ---
 
@@ -230,7 +237,7 @@ backend/tests/test_forecast_selection.py::test_deterministic_tie_breaking_for_eq
 backend/tests/test_forecast_selection.py::test_forecast_selection_with_timezone_offsets PASSED
 backend/tests/test_forecast_selection.py::test_delivery_day_forecast_selection_with_missing_intervals PASSED
 
-================ 31 passed, 1 warning in 0.70s =================
+================ 34 passed, 1 warning in 0.65s =================
 
 ============================= frontend/src/tests =============================
 src/tests/App.test.tsx (2 tests passed)
@@ -240,19 +247,19 @@ src/tests/FilterBar.test.tsx (2 tests passed)
 src/tests/IntervalTable.test.tsx (4 tests passed)
 src/tests/SummaryCards.test.tsx (3 tests passed)
 
-================ 15 passed in 8.12s =================
+================ 15 passed in 5.22s =================
 
-TOTAL: 46 automated tests executed and passing.
+TOTAL: 49 automated tests executed and passing (100% pass rate).
 ```
 
 ---
 
 ## 10. Deployment Configuration
 
-* **Frontend Hosting (Vercel):** Configured via [`vercel.json`](./vercel.json) for Vite SPA client-side routing. In production, set the `VITE_API_BASE_URL` environment variable to your deployed backend origin.
-* **Backend Hosting (Render / Container Host):** Configured via [`render.yaml`](./render.yaml) with persistent disk volume mounted at `/app/data` for the SQLite cache. Explicit CORS origins are enforced without wildcards.
-* **Docker Multi-Stage Build:** Verified locally via [`docker-compose.yml`](./docker-compose.yml) serving the optimized React build on Nginx (port 3000) and FastAPI via Uvicorn (port 8080).
-* **Production Status:** Local and container builds are verified. Remote public URLs on Vercel and Render have not been deployed from this local evaluation environment.
+* **Frontend Hosting (Vercel):** Deployed live at [https://windintel.vercel.app](https://windintel.vercel.app). Configured via [`vercel.json`](./vercel.json) for Vite SPA client-side routing with `VITE_API_BASE_URL` pointing to Render.
+* **Backend Hosting (Render):** Deployed live at [https://windintel.onrender.com](https://windintel.onrender.com) with interactive OpenAPI docs at [`/docs`](https://windintel.onrender.com/docs). Monorepo root directory set to `backend`, with SQLite cache mounted at `/app/data/windintel.db` and dynamic CORS regular expression matching `^https:\/\/.*\.vercel\.app$`.
+* **Docker Multi-Stage Build:** Verified locally and in production via [`docker-compose.yml`](./docker-compose.yml) and [`backend/Dockerfile`](./backend/Dockerfile).
+* **Production Status:** **Live & Operational**. Both frontend and backend are continuously deployed and communicating over HTTPS.
 
 ---
 

@@ -1,6 +1,15 @@
 # WindIntel — Deployment Guide
 
-This guide covers local development, Docker Compose orchestration, and cloud deployment of WindIntel across Vercel (frontend) and Render (backend).
+This guide covers local development, Docker Compose orchestration, and cloud deployment of WindIntel across **Render** (backend API) and **Vercel** (frontend dashboard).
+
+---
+
+## 0. Live Production Deployments
+
+* **Frontend Dashboard (Vercel):** [https://windintel.vercel.app](https://windintel.vercel.app)
+* **Backend API (Render):** [https://windintel.onrender.com](https://windintel.onrender.com)
+* **Interactive OpenAPI Docs:** [https://windintel.onrender.com/docs](https://windintel.onrender.com/docs)
+* **API Health Check:** [https://windintel.onrender.com/api/health](https://windintel.onrender.com/api/health)
 
 ---
 
@@ -66,23 +75,53 @@ docker compose down
 ## 3. Production Cloud Deployment
 
 ### 3.1 Deploying Backend to Render
-1. Push this repository to GitHub/GitLab.
-2. In Render, select **New > Blueprint** and link your repository.
-3. Render will automatically detect `render.yaml` and configure:
-   - Python 3.12 Web Service (`windintel-api`)
-   - Build Command: `pip install -r requirements.txt`
-   - Start Command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-   - Persistent Disk: Mounted at `/app/data` to preserve the SQLite cache.
-   - Health Check Path: `/api/health`
-4. Note your deployed Render backend URL (e.g. `https://windintel-api.onrender.com`).
+
+Render hosts the FastAPI backend. You can deploy either using the Blueprint file ([`render.yaml`](../render.yaml)) or by manually linking the repository.
+
+#### Manual Web Service Configuration (Docker Runtime):
+When creating or configuring the Web Service in Render Dashboard under **Settings > Build & Deploy**:
+- **Runtime:** `Docker`
+- **Root Directory:** `backend` *(critical in monorepo to avoid root Dockerfile missing error)*
+- **Dockerfile Path:** `Dockerfile` *(relative to root directory `backend`)*
+- **Docker Build Context Directory:** `.` *(builds inside `backend/`)*
+- **Docker Command:** *(Leave completely blank; Dockerfile provides the Uvicorn CMD)*
+- **Health Check Path:** `/api/health`
+
+#### Native Python Runtime (Alternative):
+- **Runtime:** `Python 3`
+- **Root Directory:** `backend`
+- **Build Command:** `pip install -r requirements.txt`
+- **Start Command:** `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+
+#### Environment Variables to Set on Render:
+```env
+ENV=production
+DEBUG=false
+CACHE_DB_PATH=/app/data/windintel.db
+CORS_ORIGINS=["https://windintel.vercel.app","http://localhost:5173"]
+```
+
+> [!NOTE]
+> The backend automatically validates `CORS_ORIGINS` whether provided as a JSON array or comma-separated list, and includes regex matching `^https:\/\/.*\.vercel\.app$` so all Vercel production and preview domains are allowed out of the box.
+
+---
 
 ### 3.2 Deploying Frontend to Vercel
-1. In Vercel, click **Add New > Project** and import the repository.
-2. Root Directory: `./` (or `frontend` depending on configuration).
-3. The included `vercel.json` automatically configures Vite builds and proxies `/api/*` requests to your Render backend.
-4. Set Environment Variable in Vercel Project Settings:
-   - `VITE_API_BASE_URL`: `https://windintel-api.onrender.com`
-5. Deploy.
+
+1. In Vercel, click **Add New > Project** and import the `karansaini46/WindIntel` repository.
+2. Root Directory: `./` (Vercel automatically detects [`vercel.json`](../vercel.json)).
+3. Configure the Production Environment Variable in Vercel Settings:
+   - `VITE_API_BASE_URL`: `https://windintel.onrender.com`
+4. Deploy.
+
+#### Deploy via Vercel CLI:
+```bash
+npm install -g vercel
+vercel login
+vercel link
+vercel env add VITE_API_BASE_URL production   # enter: https://windintel.onrender.com
+vercel --prod
+```
 
 ---
 
@@ -92,10 +131,22 @@ docker compose down
 | :--- | :--- | :--- | :--- |
 | `ENV` | `development` | Backend | Runtime environment (`development`, `production`). |
 | `DEBUG` | `false` | Backend | Enable verbose logging. |
-| `PORT` | `8000` | Backend | Port binding for Uvicorn server. |
+| `PORT` | Dynamic (`$PORT` on Render, `8000` local) | Backend | Port binding for Uvicorn server. |
 | `DEFAULT_DECISION_CUTOFF` | `12:00:00` | Backend | Operational day-ahead cutoff time in `Europe/London`. |
 | `MARKET_TIMEZONE` | `Europe/London` | Backend | GB electricity market timezone. |
-| `CACHE_DB_PATH` | `windintel.db` | Backend | Path to persistent SQLite cache file. |
-| `CACHE_TTL_SECONDS` | `2592000` (30 days) | Backend | Expiration time for cached responses. |
-| `CORS_ORIGINS` | `["http://localhost:5173", ...]` | Backend | Explicit authorized frontend origins (JSON array without wildcards). |
-| `VITE_API_BASE_URL` | `""` (proxied in dev) | Frontend | Absolute URL of the backend API for cloud deployments. |
+| `CACHE_DB_PATH` | `windintel.db` | Backend | Path to persistent SQLite cache file (`/app/data/windintel.db` in container). |
+| `CACHE_TTL_SECONDS` | `2592000` (30 days) | Backend | Expiration time for immutable historical responses. |
+| `CORS_ORIGINS` | Includes `https://windintel.vercel.app`, localhost | Backend | Explicit authorized origins (JSON array or comma-separated). Regex permits `*.vercel.app`. |
+| `VITE_API_BASE_URL` | `""` (proxied in dev) | Frontend | Absolute URL of the backend API (`https://windintel.onrender.com`). |
+
+---
+
+## 5. Troubleshooting & Gotchas
+
+1. **`failed to read dockerfile: open Dockerfile: no such file or directory` on Render:**
+   In Render Settings, ensure **Root Directory** is set to `backend`. Since this repository is a monorepo, leaving Root Directory blank forces Docker to look for `Dockerfile` at the repository root where none exists.
+2. **`Failed to fetch / Disallowed CORS origin` on Frontend:**
+   The backend enforces strict CORS for security. If deploying to a custom domain, add your frontend origin to `CORS_ORIGINS` on Render. All `*.vercel.app` domains are permitted by default via regular expression.
+3. **Render Free Instance Sleep:**
+   Render free tier instances spin down after 15 minutes of inactivity. Initial requests may take 30–50 seconds to cold-start.
+
